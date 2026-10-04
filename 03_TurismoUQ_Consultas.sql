@@ -1,7 +1,6 @@
 /*=====================================================================
   TURISMOUQ - ENTREGA 1
   Script 03: 7 consultas de análisis obligatorias
-  Oracle XE 21c
 
   Las consultas están numeradas y comentadas exactamente en el orden de
   la guía: PIVOT, ROLLUP/GROUPING, RANK/PARTITION BY, LAG, bind variables,
@@ -101,8 +100,8 @@ WITH pagos_base AS (
          p.id_pago,
          p.monto,
          p.fecha_pago,
-         a.id_municipio,
-         a.id_tipo_alojamiento
+         m.nombre  AS municipio,
+         ta.nombre AS tipo_alojamiento
   FROM pago p
   JOIN reserva r
     ON r.id_reserva = p.id_reserva
@@ -112,15 +111,19 @@ WITH pagos_base AS (
     ON h.id_habitacion = rh.id_habitacion
   JOIN alojamiento a
     ON a.id_alojamiento = h.id_alojamiento
+  JOIN municipio m
+    ON m.id_municipio = a.id_municipio
+  JOIN tipo_alojamiento ta
+    ON ta.id_tipo_alojamiento = a.id_tipo_alojamiento
   WHERE p.estado = 'EXITOSO'
 )
 SELECT
-  CASE WHEN GROUPING(pb.id_municipio) = 1
+  CASE WHEN GROUPING(pb.municipio) = 1
        THEN 'TOTAL TODOS LOS MUNICIPIOS'
-       ELSE m.nombre END AS municipio,
-  CASE WHEN GROUPING(pb.id_tipo_alojamiento) = 1
+       ELSE pb.municipio END AS municipio,
+  CASE WHEN GROUPING(pb.tipo_alojamiento) = 1
        THEN 'TOTAL TIPO ALOJAMIENTO'
-       ELSE ta.nombre END AS tipo_alojamiento,
+       ELSE pb.tipo_alojamiento END AS tipo_alojamiento,
   CASE WHEN GROUPING(t.tipo_temporada) = 1
        THEN 'TOTAL TEMPORADA'
        ELSE t.tipo_temporada END AS temporada,
@@ -128,20 +131,16 @@ SELECT
 FROM pagos_base pb
 JOIN temporada t
   ON TRUNC(pb.fecha_pago) BETWEEN t.fecha_inicio AND t.fecha_fin
-LEFT JOIN municipio m
-  ON m.id_municipio = pb.id_municipio
-LEFT JOIN tipo_alojamiento ta
-  ON ta.id_tipo_alojamiento = pb.id_tipo_alojamiento
 GROUP BY ROLLUP (
-  pb.id_municipio,
-  pb.id_tipo_alojamiento,
+  pb.municipio,
+  pb.tipo_alojamiento,
   t.tipo_temporada
 )
 ORDER BY
-  GROUPING(pb.id_municipio),
-  pb.id_municipio,
-  GROUPING(pb.id_tipo_alojamiento),
-  pb.id_tipo_alojamiento,
+  GROUPING(pb.municipio),
+  pb.municipio,
+  GROUPING(pb.tipo_alojamiento),
+  pb.tipo_alojamiento,
   GROUPING(t.tipo_temporada),
   t.tipo_temporada;
 
@@ -243,14 +242,16 @@ ORDER BY mes;
 /*=====================================================================
   CONSULTA 5 - CONSULTA PARAMETRIZADA CON VARIABLES DE ENLACE
 
-  En SQL Developer se pueden ejecutar previamente estas variables de
-  ejemplo y luego correr la consulta:
-
-    VAR p_fecha_inicio DATE;
-    VAR p_fecha_fin DATE;
-    EXEC :p_fecha_inicio := DATE '2026-01-01';
-    EXEC :p_fecha_fin := DATE '2026-06-30';
+  Las variables de enlace se declaran y se les asigna un valor justo
+  antes de la consulta (rango de fechas de check-in, formato YYYY-MM-DD).
+  Ejecutar con "Run Script" (F5) para que corran las líneas VARIABLE y
+  EXEC. Para probar otro rango, cambiar los dos valores del EXEC.
 =====================================================================*/
+VARIABLE p_fecha_inicio VARCHAR2(10)
+VARIABLE p_fecha_fin    VARCHAR2(10)
+EXEC :p_fecha_inicio := '2026-01-01'
+EXEC :p_fecha_fin    := '2026-06-30'
+
 SELECT
   r.id_reserva,
   c.nombre_completo AS cliente,
@@ -274,7 +275,8 @@ JOIN cliente c
   ON c.id_cliente = r.id_cliente
 LEFT JOIN reserva_habitacion rh
   ON rh.id_reserva = r.id_reserva
-WHERE TRUNC(r.fecha_check_in) BETWEEN TRUNC(:p_fecha_inicio) AND TRUNC(:p_fecha_fin)
+WHERE TRUNC(r.fecha_check_in) BETWEEN TO_DATE(:p_fecha_inicio, 'YYYY-MM-DD')
+                              AND TO_DATE(:p_fecha_fin, 'YYYY-MM-DD')
 GROUP BY
   r.id_reserva,
   c.nombre_completo,

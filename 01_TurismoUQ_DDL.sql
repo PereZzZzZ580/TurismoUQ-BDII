@@ -1,9 +1,6 @@
 /*=====================================================================
   TURISMOUQ - ENTREGA 1
-  Oracle Database XE 21c
   Script 01: DDL completo (tablas + PK + FK + CHECK + NOT NULL + UNIQUE)
-
-  Orden: ejecutar este script sobre un esquema de desarrollo limpio.
 =====================================================================*/
 
 SET DEFINE OFF;
